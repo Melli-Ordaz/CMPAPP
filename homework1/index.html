@@ -62,6 +62,12 @@ canvas{
     top:0;
     display: none;
 }
+#file_input {
+  display: none;
+}
+input[type="file"]{
+  width: 100px;
+}
 </style>
 
 <body>
@@ -77,14 +83,16 @@ canvas{
       <ul class="operation">
         <li data-type="select">选择</li>
         <li data-type="word">写字</li>
-        <li>添加图片</li>
-        <li data-type="xoverturn">水平翻转图片</li>
-        <li>垂直翻转图片</li>
+        <li data-type="addpic">添加图片<br>
+          <input type="file" id="file_input" name="img" accept="image/*" />
+        </li>
+        <li data-type="xoverturn">水平翻转画板</li>
+        <li data-type="yoverturn">垂直翻转画板</li>
         <li data-type="erase">橡皮</li>
         <li data-type="backout">撤销</li>
       </ul>
     </div>
-    <div class="box">
+    <div class="box" ondrop="console.log(e)">
         <div class="board"></div>
         <div class="erase"></div>
         <div class="selectarea"></div>
@@ -99,6 +107,7 @@ canvas{
     var box = $(".box")[0];
     var erase = $('.erase');
     var selectarea = $('.selectarea');
+
     // 创建实例
     var obj = new draw(box, canvas, ctx, erase, selectarea);
 
@@ -129,17 +138,56 @@ canvas{
       if(type === 'select') {
         obj.select(selectarea);
       }
+      if(type === 'addpic') {
+        obj.seletcpicturearea(selectarea);
+      }
+      if(type === 'xoverturn'){
+        obj.xoverturn();
+      }
+      if(type === 'yoverturn'){
+        obj.yoverturn();
+      }
     });
+    // 插入图片
+    var imginput = document.getElementById("file_input");
+
+    if (typeof window.URL === 'undefined') {
+      imginput.setAttribute('disabled', 'disabled');
+    } else {
+      imginput.addEventListener('change', function() {
+        var file = this.files[0];
+      });
+    }
+    imginput.addEventListener('change', function() {
+      var file = this.files[0];
+      img = new Image();
+      img.src = window.URL.createObjectURL(this.files[0]); //创建一个object URL，并不是你的本地路径
+      img.onload = function(e) {
+        // console.log(img.height);
+          // obj.picture(img,selectarea);
+          obj.setpicture(img,selectarea);
+          window.URL.revokeObjectURL(this.src); //图片加载后，释放object URL
+      }
+      // box.appendChild(img);
+    }, false);
+
 
 
     function draw(box, canvas, cobj, erase, selectobj){
       this.box = box;
+      this.canvas = canvas;
       this.width = canvas.width;
       this.height = canvas.height;
       this.cobj = cobj;
       this.xobj = erase;
       this.selectobj = selectobj;
       this.temp = null;
+      this.tempPic = {
+        minx: 0,
+        miny: 0,
+        w: 0,
+        h: 0,
+      };
 
       this.bgcolor = "#000";
       this.borderColor = "#000";
@@ -334,86 +382,105 @@ canvas{
     };
     draw.prototype.xoverturn = function() {
       var that = this;
-      console.log('翻转');
+      console.log('x翻转');
+      that.cobj.save()
       that.cobj.translate(that.width, 0);
       that.cobj.scale(-1, 1);
-      // that.cobj.clearRect(0, 0, that.width, that.height);
-      // that.cobj.translate(that.width, 0);
-      // that.cobj.scale(0.5,0.5);
-      // that.cobj.drawImage(that.history[that.history.length - 1], 0, 0);
-
+      var imageObject = new Image();
+      imageObject.onload=function(){
+        that.history.push(that.cobj.getImageData(0, 0, that.width, that.height));
+        that.cobj.clearRect(0,0,that.width,that.height);
+        that.cobj.drawImage(imageObject,0,0);
+        that.cobj.restore();
+      }
+      imageObject.src = that.canvas.toDataURL();
+    };
+    draw.prototype.yoverturn = function() {
+      var that = this;
+      console.log('y翻转');
+      that.cobj.save();
+      that.cobj.translate(0, that.height);
+      that.cobj.scale(1, -1);
+      var imageObject = new Image();
+      imageObject.onload=function(){
+        that.history.push(that.cobj.getImageData(0, 0, that.width, that.height));
+        that.cobj.clearRect(0,0,that.width,that.height);
+        that.cobj.drawImage(imageObject,0,0);
+        that.cobj.restore();
+      }
+      imageObject.src = that.canvas.toDataURL();
     };
     draw.prototype.text = function(text) {
       var that = this;
       that.init();
       that.box.onmousedown = function (e) {
-          var startx = e.offsetX;
-          var starty = e.offsetY;
-          var minx, miny, w, h;
+        var startx = e.offsetX;
+        var starty = e.offsetY;
+        var minx, miny, w, h;
+        that.init();
+        that.box.onmousemove = function (e) {
           that.init();
-          that.box.onmousemove = function (e) {
-              that.init();
-              var endx = e.offsetX;
-              var endy = e.offsetY;
-              minx = Math.min(startx, endx);
-              miny = Math.min(starty, endy);
-              w = Math.abs(endx - startx);
-              h = Math.abs(endy - starty);
-              text.css({
-                  display: "block",
-                  left: minx,
-                  top: miny,
-                  width: w,
-                  height: h
-              })
-          }
-          that.box.onmouseup = function (e) {
-              that.box.onmouseup = null;
-              that.box.onmousemove = null;
-              var promptTemp = prompt("内容:","请输入文字");
-              var textcontent = (promptTemp == null)? '':promptTemp;
-              ctx.fillText(textcontent, minx, miny);
-              that.temp = that.cobj.getImageData(minx, miny, w, h);
-              that.cobj.clearRect(minx, miny, w, h)
-              that.history.push(that.cobj.getImageData(0, 0, that.width, that.height))
-              that.cobj.putImageData(that.temp, minx, miny);
-              that.drag(minx, miny, w, h, text);
-          }
+          var endx = e.offsetX;
+          var endy = e.offsetY;
+          minx = Math.min(startx, endx);
+          miny = Math.min(starty, endy);
+          w = Math.abs(endx - startx);
+          h = Math.abs(endy - starty);
+          text.css({
+              display: "block",
+              left: minx,
+              top: miny,
+              width: w,
+              height: h
+          })
+        }
+        that.box.onmouseup = function (e) {
+          that.box.onmouseup = null;
+          that.box.onmousemove = null;
+          var promptTemp = prompt("内容:","请输入文字");
+          var textcontent = (promptTemp == null)? '':promptTemp;
+          ctx.fillText(textcontent, minx, miny);
+          that.temp = that.cobj.getImageData(minx, miny, w, h);
+          that.cobj.clearRect(minx, miny, w, h)
+          that.history.push(that.cobj.getImageData(0, 0, that.width, that.height))
+          that.cobj.putImageData(that.temp, minx, miny);
+          that.drag(minx, miny, w, h, text);
+        }
       }
     };
     draw.prototype.select = function (selectAreaobj) {
       var that = this;
       that.init();
       that.box.onmousedown = function (e) {
-          var startx = e.offsetX;
-          var starty = e.offsetY;
-          var minx, miny, w, h;
+        var startx = e.offsetX;
+        var starty = e.offsetY;
+        var minx, miny, w, h;
+        that.init();
+        that.box.onmousemove = function (e) {
           that.init();
-          that.box.onmousemove = function (e) {
-              that.init();
-              var endx = e.offsetX;
-              var endy = e.offsetY;
-              minx = Math.min(startx, endx);
-              miny = Math.min(starty, endy);
-              w = Math.abs(endx - startx);
-              h = Math.abs(endy - starty);
-              selectAreaobj.css({
-                  display: "block",
-                  left: minx,
-                  top: miny,
-                  width: w,
-                  height: h
-              })
-          }
-          that.box.onmouseup = function (e) {
-              that.box.onmouseup = null;
-              that.box.onmousemove = null;
-              that.temp = that.cobj.getImageData(minx, miny, w, h);
-              that.cobj.clearRect(minx, miny, w, h)
-              that.history.push(that.cobj.getImageData(0, 0, that.width, that.height))
-              that.cobj.putImageData(that.temp, minx, miny);
-              that.drag(minx, miny, w, h, selectAreaobj);
-          }
+          var endx = e.offsetX;
+          var endy = e.offsetY;
+          minx = Math.min(startx, endx);
+          miny = Math.min(starty, endy);
+          w = Math.abs(endx - startx);
+          h = Math.abs(endy - starty);
+          selectAreaobj.css({
+              display: "block",
+              left: minx,
+              top: miny,
+              width: w,
+              height: h
+          })
+        }
+        that.box.onmouseup = function (e) {
+          that.box.onmouseup = null;
+          that.box.onmousemove = null;
+          that.temp = that.cobj.getImageData(minx, miny, w, h);
+          that.cobj.clearRect(minx, miny, w, h);
+          that.history.push(that.cobj.getImageData(0, 0, that.width, that.height));
+          that.cobj.putImageData(that.temp, minx, miny);
+          that.drag(minx, miny, w, h, selectAreaobj);
+        }
       }
     };
     draw.prototype.drag = function (x, y, w, h, selectAreaobj) {
@@ -477,6 +544,73 @@ canvas{
         }
       }
     };
+    draw.prototype.seletcpicturearea = function (selectAreaobj) {
+      var that = this;
+      that.init();
+      that.box.onmousedown = function (e) {
+        var startx = e.offsetX;
+        var starty = e.offsetY;
+        var minx, miny, w, h;
+        that.init();
+        that.box.onmousemove = function (e) {
+          that.init();
+          var endx = e.offsetX;
+          var endy = e.offsetY;
+          minx = Math.min(startx, endx);
+          miny = Math.min(starty, endy);
+          w = Math.abs(endx - startx);
+          h = Math.abs(endy - starty);
+          selectAreaobj.css({
+              display: "block",
+              left: minx,
+              top: miny,
+              width: w,
+              height: h
+          })
+        }
+        that.box.onmouseup = function (e) {
+          that.box.onmouseup = null;
+          that.box.onmousemove = null;
+          that.tempPic = {
+            minx: minx,
+            miny: miny,
+            w: w,
+            h: h,
+          };
+          imginput.click();
+          //
+        }
+      }
+    };
+    draw.prototype.setpicture = function(img, selectAreaobj) {
+      var that = this;
+      var minx = that.tempPic.minx,
+        miny = that.tempPic.miny,
+        w = that.tempPic.w,
+        h = that.tempPic.h,
+        picw,
+        pich;
+      if(w/img.width<=h/img.height)
+      {
+        picw=img.width*(w/img.width);
+        pich=img.height*(w/img.width);
+      }else{
+        picw=img.width*(h/img.height);
+        pich=img.height*(h/img.height);
+      }
+      // console.log(img.width);
+      // console.log(img.height);
+      // console.log(picw);
+      // console.log(pich);
+      that.cobj.drawImage(img,minx,miny,picw,pich);
+      that.temp = that.cobj.getImageData(minx, miny, w, h);
+      that.cobj.clearRect(minx, miny, w, h);
+      that.history.push(that.cobj.getImageData(0, 0, that.width, that.height));
+      that.cobj.putImageData(that.temp, minx, miny);
+      that.drag(minx, miny, w, h, selectAreaobj);
+
+    }
+
 
   </script>
 </body>

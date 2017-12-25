@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Document</title>
+</head>
+<body>
+  <p>段落1</p>
+  <p>段落2</p>
+  <table>
+    <tr>
+      <td>第一行</td>
+      <td>第一行</td>
+    </tr>
+    <tr>
+      <td>第二行</td>
+      <td>第二行</td>
+    </tr>
+    <tr>
+      <td>第三行</td>
+      <td>第三行</td>
+    </tr>
+    <tr>
+      <td>第四行</td>
+      <td>第四行</td>
+    </tr>
+    <tr>
+      <td>第五行</td>
+      <td>第五行</td>
+    </tr>
+    <tr>
+      <td>第六行</td>
+      <td>第六行</td>
+    </tr>
+  </table>
+  <input type="checkbox">test1
+  <input type="checkbox">test2
+  <input type="checkbox">test3
+  <input type="checkbox">test4
+  <input type="button" value="你选中的个数">
+
+  <script src="https://cdn.bootcss.com/jquery/3.2.1/jquery.min.js"></script>
+  <script type="text/javascript">
+    $(document).ready(function(){
+      $("p").on("click",function() {
+        alert($(this).text())
+      })// 习题1.
+      $("tr:even").css({"background":"rgb(245,192,174)"})
+      $("input[type=\"button\"]").on("click",function(){
+        var count = $("input:checked").length;
+        alert("选中的个数为："+count)
+      })
+    });
+  </script>
+</body>
+</html>
